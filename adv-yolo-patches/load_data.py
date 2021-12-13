@@ -39,7 +39,6 @@ class MaxProbExtractor(nn.Module):
 
     def forward(self, YOLOoutput):
         # get values neccesary for transformation
-        print(f'YOLOoutput dimension: {YOLOoutput.dim()}')
         if YOLOoutput.dim() == 3:
             YOLOoutput = YOLOoutput.unsqueeze(0)
         batch = YOLOoutput.size(0)
@@ -188,12 +187,12 @@ class PatchTransformer(nn.Module):
         # Create random noise tensor
         noise = torch.cuda.FloatTensor(adv_batch.size()).uniform_(-1, 1) * self.noise_factor
 
-
+        print("Pre noise: ", adv_batch.shape)
         # Apply contrast/brightness/noise, clamp
         adv_batch = adv_batch * contrast + brightness + noise
 
         adv_batch = torch.clamp(adv_batch, 0.000001, 0.99999)
-
+        print("Post noise: ", adv_batch.shape)
         # Where the label class_id is 1 we don't want a patch (padding) --> fill mask with zero's
         cls_ids = torch.narrow(lab_batch, 2, 0, 1)
         cls_mask = cls_ids.expand(-1, -1, 3)
@@ -208,6 +207,7 @@ class PatchTransformer(nn.Module):
         adv_batch = mypad(adv_batch)
         msk_batch = mypad(msk_batch)
 
+        print(adv_batch.shape, msk_batch.shape)
 
         # Rotation and rescaling transforms
         anglesize = (lab_batch.size(0) * lab_batch.size(1))
@@ -287,7 +287,97 @@ class PatchTransformer(nn.Module):
         #img.show()
         #exit()
 
-        return adv_batch_t * msk_batch_t
+        return_val = adv_batch_t * msk_batch_t
+        return return_val
+
+class PoseEstimationPatchTransformer(nn.Module):
+    def __init__(self):
+        super(PoseEstimationPatchTransformer, self).__init__()
+        self.medianpooler = MedianPool2d(7,same=True)
+
+    def forward(self, adv_patch, lab_batch, img_size, do_rotate=True, rand_loc=True):
+        adv_patch = self.medianpooler(adv_patch.unsqueeze(0))
+        pad = (img_size - adv_patch.size(-1)) / 2
+
+        adv_patch = adv_patch.unsqueeze(0)#.unsqueeze(0)
+        adv_batch = adv_patch.expand(lab_batch.size(0), lab_batch.size(1), -1, -1, -1)
+        batch_size = torch.Size((lab_batch.size(0), lab_batch.size(1)))
+        
+        adv_batch = torch.clamp(adv_batch, 0.000001, 0.99999)
+
+        # Where the label class_id is 1 we don't want a patch (padding) --> fill mask with zero's
+        cls_ids = torch.narrow(lab_batch, 2, 0, 1)
+        cls_mask = cls_ids.expand(-1, -1, 3)
+        cls_mask = cls_mask.unsqueeze(-1)
+        cls_mask = cls_mask.expand(-1, -1, -1, adv_batch.size(3))
+        cls_mask = cls_mask.unsqueeze(-1)
+        cls_mask = cls_mask.expand(-1, -1, -1, -1, adv_batch.size(4))
+        msk_batch = torch.cuda.FloatTensor(cls_mask.size()).fill_(1) - cls_mask
+
+        # Pad patch and mask to image dimensions
+        mypad = nn.ConstantPad2d((int(pad + 0.5), int(pad), int(pad + 0.5), int(pad)), 0)
+        adv_batch = mypad(adv_batch)
+        msk_batch = mypad(msk_batch)
+        
+        # Rotation and rescaling transforms
+        anglesize = (lab_batch.size(0) * lab_batch.size(1))
+
+        # Resizes and rotates
+        current_patch_size = adv_patch.size(-1)
+        lab_batch_scaled = torch.cuda.FloatTensor(lab_batch.size()).fill_(0)
+        lab_batch_scaled[:, :, 1] = lab_batch[:, :, 1] * img_size
+        lab_batch_scaled[:, :, 2] = lab_batch[:, :, 2] * img_size
+        lab_batch_scaled[:, :, 3] = lab_batch[:, :, 3] * img_size
+        lab_batch_scaled[:, :, 4] = lab_batch[:, :, 4] * img_size
+
+        target_size = torch.sqrt(((lab_batch_scaled[:, :, 3].mul(0.2)) ** 2) + ((lab_batch_scaled[:, :, 4].mul(0.2)) ** 2))
+        
+        target_x = lab_batch[:, :, 1].view(np.prod(batch_size))
+        target_y = lab_batch[:, :, 2].view(np.prod(batch_size))
+        targetoff_x = lab_batch[:, :, 3].view(np.prod(batch_size))
+        targetoff_y = lab_batch[:, :, 4].view(np.prod(batch_size))
+
+        # waymo
+        target_y = target_y - 0.01
+        
+        # inria
+        # target_y = target_y - 0.05
+
+        scale = target_size / current_patch_size
+        scale = scale.view(anglesize)
+
+        s = adv_batch.size()
+        adv_batch = adv_batch.view(s[0] * s[1], s[2], s[3], s[4])
+        msk_batch = msk_batch.view(s[0] * s[1], s[2], s[3], s[4])
+
+        tx = (-target_x+0.5)*2
+        ty = (-target_y+0.5)*2
+
+        no_oop_cos = torch.cuda.FloatTensor(anglesize).fill_(1)
+        no_oop_sin = torch.cuda.FloatTensor(anglesize).fill_(0)
+
+        # Theta = rotation,rescale matrix
+        theta = torch.cuda.FloatTensor(anglesize, 2, 3).fill_(0)
+        theta[:, 0, 0] = no_oop_cos/scale
+        theta[:, 0, 1] = 0
+        theta[:, 0, 2] = tx*no_oop_cos/scale
+        theta[:, 1, 0] = 0
+        theta[:, 1, 1] = no_oop_cos/scale
+        theta[:, 1, 2] = ty*no_oop_cos/scale
+
+        b_sh = adv_batch.shape
+        grid = F.affine_grid(theta, adv_batch.shape)
+
+        adv_batch_t = F.grid_sample(adv_batch, grid)
+        msk_batch_t = F.grid_sample(msk_batch, grid)
+
+        adv_batch_t = adv_batch_t.view(s[0], s[1], s[2], s[3], s[4])
+        msk_batch_t = msk_batch_t.view(s[0], s[1], s[2], s[3], s[4])
+
+        adv_batch_t = torch.clamp(adv_batch_t, 0.000001, 0.999999)
+
+        return_val = adv_batch_t * msk_batch_t
+        return return_val
 
 
 class PatchApplier(nn.Module):
@@ -301,6 +391,7 @@ class PatchApplier(nn.Module):
         super(PatchApplier, self).__init__()
 
     def forward(self, img_batch, adv_batch):
+        print(img_batch.shape, adv_batch.shape)
         advs = torch.unbind(adv_batch, 1)
         for adv in advs:
             img_batch = torch.where((adv == 0), img_batch, adv)

@@ -10,8 +10,8 @@ class BaseConfig(object):
         """
         Set the defaults.
         """
-        self.img_dir = "/home/rdr2143/waymo-adv-dataset/train-large-one-img"
-        self.lab_dir = "/home/rdr2143/waymo-adv-dataset/train-large-one-img/labels"
+        self.img_dir = "/home/rdr2143/waymo-adv-dataset/train-large-v2"
+        self.lab_dir = "/home/rdr2143/waymo-adv-dataset/train-large-v2/labels"
         # self.img_dir = "inria/Train/pos"
         # self.lab_dir = "inria/Train/pos/yolo-labels"
         self.cfgfile = "cfg/yolo.cfg"
@@ -127,13 +127,27 @@ class WaymoApplierObj(BaseConfig):
     """
     Reproduce the results from the paper: Generate a patch that minimises object score.
     """
+# DIR_TO_STORE = '/home/rdr2143/waymo-adv-dataset/adv/'
+# DIR_TO_STORE = '/home/rdr2143/inria-adv-dataset/'
+# DIR_TO_STORE = '/home/rdr2143/waymo-adv-dataset/trained-patches/'
 
     def __init__(self):
         super().__init__()
         # self.img_dir = "inria/Train/pos"
         # self.lab_dir = "inria/Train/pos/yolo-labels"
-        self.img_dir = "/home/rdr2143/waymo-adv-dataset/train"
-        self.lab_dir = "/home/rdr2143/waymo-adv-dataset/train/labels"
+        # self.dir_to_store = '/home/rdr2143/inria-adv-dataset/'
+
+        # self.img_dir = "/home/rdr2143/waymo-adv-dataset/train"
+        # self.lab_dir = "/home/rdr2143/waymo-adv-dataset/train/labels"
+        # self.dir_to_store = '/home/rdr2143/waymo-adv-dataset/adv/'
+
+        self.img_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2"
+        # self.lab_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2/labels"
+        # self.dir_to_store = "/home/rdr2143/inria-adv-dataset/single-failed-v2-pose/"
+        
+        self.lab_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2/yolo-labels"
+        self.dir_to_store = "/home/rdr2143/inria-adv-dataset/single-failed-v2-regular/"
+
         self.batch_size = 1
         self.patch_size = 300
 

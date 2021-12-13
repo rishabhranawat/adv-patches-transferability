@@ -15,8 +15,6 @@ import patch_config
 import sys
 import time
 
-DIR_TO_STORE = '/home/rdr2143/waymo-adv-dataset/adv/'
-
 class WaymoPatchApplier(object):
 	def __init__(self, mode):
 		self.config = patch_config.patch_configs[mode]()
@@ -25,12 +23,11 @@ class WaymoPatchApplier(object):
 		self.darknet_model.load_weights(self.config.weightfile)
 		self.darknet_model = self.darknet_model.eval().cuda() # TODO: Why eval?
 		self.patch_applier = PatchApplier().cuda()
-		self.patch_transformer = PatchTransformer().cuda()
+		self.patch_transformer = PoseEstimationPatchTransformer().cuda()
 
 		self.writer = self.init_tensorboard(mode)
 
 	def init_tensorboard(self, name=None):
-		subprocess.Popen(['tensorboard', '--logdir=runs'])
 		if name is not None:
 			time_str = time.strftime("%Y%m%d-%H%M%S")
 			return SummaryWriter(f'runs/{time_str}_{name}')
@@ -46,6 +43,7 @@ class WaymoPatchApplier(object):
 		print(f'batch_size: {batch_size}')
 		# Generate stating point
 		# adv_patch_cpu = self.generate_patch("gray")
+		# adv_patch_cpu = self.read_image("saved_patches/patch_image_waymo_2.png")
 		adv_patch_cpu = self.read_image("patches/class_detection.png")
 
 		adv_patch_cpu.requires_grad_(True)
@@ -64,12 +62,12 @@ class WaymoPatchApplier(object):
 			# self.writer.add_image('test_img'+str(i_batch), p_img_batch[0])
 			
 			print(f'writing image {i_batch}')
-			image_name = DIR_TO_STORE+'og/'+str(i_batch)+'_og_img.jpg'
-			adv_image_name = DIR_TO_STORE+'patched/'+str(i_batch)+'_patched_img.jpg'
+			image_name = self.config.dir_to_store+'og/'+str(i_batch)+'_og_img.jpg'
+			adv_image_name = self.config.dir_to_store+'patched/'+str(i_batch)+'_patched_img.jpg'
 
 			# og_img_tensor = self.resize_img(p_img_batch[0], 1280, 1920)
 			# adv_img_tensor = self.resize_img(img_batch[0], 1280, 1920)
-			# self.writer.add_image('test_img'+str(i_batch), og_img_tensor)
+			self.writer.add_image('test_img'+str(i_batch), p_img_batch[0])
 
 			torchvision.utils.save_image(p_img_batch[0], adv_image_name)
 			torchvision.utils.save_image(img_batch[0], image_name)
