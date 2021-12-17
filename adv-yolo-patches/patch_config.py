@@ -141,12 +141,21 @@ class WaymoApplierObj(BaseConfig):
         # self.lab_dir = "/home/rdr2143/waymo-adv-dataset/train/labels"
         # self.dir_to_store = '/home/rdr2143/waymo-adv-dataset/adv/'
 
-        self.img_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2"
+        # self.img_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2"
         # self.lab_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2/labels"
         # self.dir_to_store = "/home/rdr2143/inria-adv-dataset/single-failed-v2-pose/"
         
-        self.lab_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2/yolo-labels"
-        self.dir_to_store = "/home/rdr2143/inria-adv-dataset/single-failed-v2-regular/"
+        # self.img_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2"
+        # self.lab_dir = "/home/rdr2143/inria-adv-dataset/single-failed-v2/yolo-labels"
+        # self.dir_to_store = "/home/rdr2143/inria-adv-dataset/single-failed-v2-regular/"
+
+        # self.img_dir = "/home/rdr2143/waymo-adv-dataset/single-failed-v1"
+        # self.lab_dir = "/home/rdr2143/waymo-adv-dataset/single-failed-v1/yolo-labels"
+        # self.dir_to_store = "/home/rdr2143/waymo-adv-dataset/single-failed-v1-regular/"
+
+        self.img_dir = "/home/rdr2143/waymo-adv-dataset/single-failed-v1"
+        self.lab_dir = "/home/rdr2143/waymo-adv-dataset/single-failed-v1/labels"
+        self.dir_to_store = "/home/rdr2143/waymo-adv-dataset/single-failed-v1-pose/"
 
         self.batch_size = 1
         self.patch_size = 300

@@ -187,12 +187,10 @@ class PatchTransformer(nn.Module):
         # Create random noise tensor
         noise = torch.cuda.FloatTensor(adv_batch.size()).uniform_(-1, 1) * self.noise_factor
 
-        print("Pre noise: ", adv_batch.shape)
         # Apply contrast/brightness/noise, clamp
         adv_batch = adv_batch * contrast + brightness + noise
 
         adv_batch = torch.clamp(adv_batch, 0.000001, 0.99999)
-        print("Post noise: ", adv_batch.shape)
         # Where the label class_id is 1 we don't want a patch (padding) --> fill mask with zero's
         cls_ids = torch.narrow(lab_batch, 2, 0, 1)
         cls_mask = cls_ids.expand(-1, -1, 3)
